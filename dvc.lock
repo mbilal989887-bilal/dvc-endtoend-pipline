@@ -1,0 +1,82 @@
+schema: '2.0'
+stages:
+  data_ingestion:
+    cmd: python src/data_ingestion.py
+    deps:
+    - path: src/data_ingestion.py
+      hash: md5
+      md5: 68c1b9843d784b5f5780e609c92034be
+      size: 2568
+    - path: student_exam_scores.csv
+      hash: md5
+      md5: 000522f5589345606f3e19ca9e7dfb99
+      size: 5321
+    outs:
+    - path: data/raw/student_exam_scores.csv
+      hash: md5
+      md5: 000522f5589345606f3e19ca9e7dfb99
+      size: 5321
+  data_preprocessing:
+    cmd: python src/data_preprocessing.py
+    deps:
+    - path: data/raw/student_exam_scores.csv
+      hash: md5
+      md5: 000522f5589345606f3e19ca9e7dfb99
+      size: 5321
+    - path: params.yaml
+      hash: md5
+      md5: 55ea1729f3b2d751804373f58893d623
+      size: 56
+    - path: src/data_preprocessing.py
+      hash: md5
+      md5: 6ad66c0fae7b89a64a9e697bd19b57ac
+      size: 6100
+    params:
+      params.yaml:
+        data_preprocessing.random_state: 42
+        data_preprocessing.test_size: 0.2
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: f00878699b51099a5672a87aefc15505
+      size: 750
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 3180fcf003b4cf5ababfdb9c3178c479
+      size: 2808
+  model_training:
+    cmd: python src/model_training.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 3180fcf003b4cf5ababfdb9c3178c479
+      size: 2808
+    - path: src/model_training.py
+      hash: md5
+      md5: 1dd7b8a2db1069019877a3da4a3bb0cf
+      size: 3919
+    outs:
+    - path: models/student_marks_prediction.joblib
+      hash: md5
+      md5: 3eb1e34c6bf773d2747437fec5d7f47d
+      size: 975
+  model_evaluation:
+    cmd: python src/model_evaluation.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: f00878699b51099a5672a87aefc15505
+      size: 750
+    - path: models/student_marks_prediction.joblib
+      hash: md5
+      md5: 3eb1e34c6bf773d2747437fec5d7f47d
+      size: 975
+    - path: src/model_evaluation.py
+      hash: md5
+      md5: da86975492a2cb96a7f55e3af9a7537d
+      size: 5083
+    outs:
+    - path: reports/metrics.json
+      hash: md5
+      md5: 4864da51100057d82a7ebdcb2c05e49c
+      size: 84

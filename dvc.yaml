@@ -1,0 +1,39 @@
+stages:
+
+  data_ingestion:
+    cmd: python src/data_ingestion.py
+    deps:
+      - student_exam_scores.csv
+      - src/data_ingestion.py
+    outs:
+      - data/raw/student_exam_scores.csv
+
+  data_preprocessing:
+    cmd: python src/data_preprocessing.py
+    deps:
+      - data/raw/student_exam_scores.csv
+      - src/data_preprocessing.py
+      - params.yaml
+    params:
+      - data_preprocessing.test_size
+      - data_preprocessing.random_state
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  model_training:
+    cmd: python src/model_training.py
+    deps:
+      - data/processed/train.csv
+      - src/model_training.py
+    outs:
+      - models/student_marks_prediction.joblib
+
+  model_evaluation:
+    cmd: python src/model_evaluation.py
+    deps:
+      - data/processed/test.csv
+      - models/student_marks_prediction.joblib
+      - src/model_evaluation.py
+    metrics:
+      - reports/metrics.json
