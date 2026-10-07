@@ -1,0 +1,23 @@
+artifact_path: /Users/mac/Documents/dvc pipline/dvc-endtoend-pipline/mlruns/1/models/m-2556aeb7c5604deb9dcb2e8bfcad8b94/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.12.0
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.1
+    skops_trusted_types: null
+mlflow_version: 3.16.1
+model_id: m-2556aeb7c5604deb9dcb2e8bfcad8b94
+model_size_bytes: 7173
+model_uuid: m-2556aeb7c5604deb9dcb2e8bfcad8b94
+prompts: null
+run_id: 1205bf0499584801953cffa93d3a8e28
+utc_time_created: '2026-10-04 19:31:37.868483'

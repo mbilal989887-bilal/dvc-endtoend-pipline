@@ -3,309 +3,245 @@ import logging
 import os
 
 import joblib
+import mlflow
 import numpy as np
 import pandas as pd
 
 from sklearn.metrics import (
-    r2_score,
     mean_absolute_error,
-    mean_squared_error
+    mean_squared_error,
+    r2_score,
 )
 
 
 TEST_FILE = "data/processed/test.csv"
+MODEL_FILE = "models/student_marks_prediction.joblib"
+METRICS_FILE = "reports/metrics.json"
+RUN_ID_FILE = "reports/mlflow_run_id.txt"
+LOG_DIR = "logs"
 
-MODEL_FILE = (
-    "models/student_marks_prediction.joblib"
-)
 
-REPORTS_DIR = "reports"
-
-METRICS_FILE = os.path.join(
-    REPORTS_DIR,
-    "metrics.json"
-)
+# Create folders
+os.makedirs("reports", exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 
 
 # --------------------------------------------------
 # Logging setup
 # --------------------------------------------------
 
-LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
-
 logger = logging.getLogger("model_evaluation")
 logger.setLevel(logging.DEBUG)
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-file_handler = logging.FileHandler(
-    os.path.join(
-        LOG_DIR,
-        "model_evaluation.log"
+if not logger.handlers:
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-)
-file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(formatter)
 
-console_handler.setFormatter(formatter)
-file_handler.setFormatter(formatter)
+    file_handler = logging.FileHandler(
+        os.path.join(LOG_DIR, "model_evaluation.log")
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
 
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
 
 
-def load_model(file_path: str):
-    """Load trained model."""
+# --------------------------------------------------
+# MLflow setup
+# --------------------------------------------------
 
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+mlflow.set_experiment("Student Marks Prediction")
+
+
+# --------------------------------------------------
+# Load model
+# --------------------------------------------------
+
+def load_model():
     try:
+        if not os.path.exists(MODEL_FILE):
+            raise FileNotFoundError(
+                f"Model file not found: {MODEL_FILE}"
+            )
 
-        model = joblib.load(file_path)
+        model = joblib.load(MODEL_FILE)
 
-        logger.debug(
-            "Model loaded from %s",
-            file_path
-        )
+        logger.debug(f"Model loaded from {MODEL_FILE}")
 
         return model
 
-    except FileNotFoundError as e:
-
-        logger.error(
-            "Model file not found: %s",
-            e
-        )
-
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
         raise
+
+
+# --------------------------------------------------
+# Load test data
+# --------------------------------------------------
+
+def load_data():
+    try:
+        if not os.path.exists(TEST_FILE):
+            raise FileNotFoundError(
+                f"Test file not found: {TEST_FILE}"
+            )
+
+        data = pd.read_csv(TEST_FILE)
+
+        logger.debug(f"Test data loaded from {TEST_FILE}")
+        logger.debug(f"Test dataset shape: {data.shape}")
+
+        return data
 
     except Exception as e:
-
-        logger.error(
-            "Error loading model: %s",
-            e
-        )
-
+        logger.error(f"Error loading test data: {e}")
         raise
 
 
-def load_data(file_path: str) -> pd.DataFrame:
-    """Load test data."""
+# --------------------------------------------------
+# Evaluate model
+# --------------------------------------------------
 
+def evaluate_model(model, data):
     try:
+        target_column = "exam_score"
 
-        df = pd.read_csv(file_path)
+        X_test = data.drop(columns=[target_column])
+        y_test = data[target_column]
 
-        logger.debug(
-            "Test data loaded from %s",
-            file_path
-        )
+        logger.debug(f"Test samples: {len(X_test)}")
 
-        logger.debug(
-            "Test dataset shape: %s",
-            df.shape
-        )
-
-        return df
-
-    except FileNotFoundError as e:
-
-        logger.error(
-            "Test data not found: %s",
-            e
-        )
-
-        raise
-
-    except pd.errors.ParserError as e:
-
-        logger.error(
-            "CSV parsing error: %s",
-            e
-        )
-
-        raise
-
-    except Exception as e:
-
-        logger.error(
-            "Unexpected error loading test data: %s",
-            e
-        )
-
-        raise
-
-
-def evaluate_model(
-    model,
-    X_test,
-    y_test
-):
-    """Calculate regression metrics."""
-
-    try:
-
-        logger.info(
-            "Starting model evaluation"
-        )
-
+        # Make predictions
         y_pred = model.predict(X_test)
 
-        r2 = r2_score(
-            y_test,
-            y_pred
-        )
-
-        mae = mean_absolute_error(
-            y_test,
-            y_pred
-        )
-
-        mse = mean_squared_error(
-            y_test,
-            y_pred
-        )
-
+        # Calculate metrics
+        r2 = r2_score(y_test, y_pred)
+        mae = mean_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
 
         metrics = {
-            "r2_score": round(
-                float(r2),
-                4
-            ),
-            "mae": round(
-                float(mae),
-                4
-            ),
-            "mse": round(
-                float(mse),
-                4
-            ),
-            "rmse": round(
-                float(rmse),
-                4
-            )
+            "r2_score": round(r2, 4),
+            "mae": round(mae, 4),
+            "mse": round(mse, 4),
+            "rmse": round(rmse, 4),
         }
 
-        logger.info(
-            "R2 Score: %.4f",
-            r2
-        )
-
-        logger.info(
-            "MAE: %.4f",
-            mae
-        )
-
-        logger.info(
-            "MSE: %.4f",
-            mse
-        )
-
-        logger.info(
-            "RMSE: %.4f",
-            rmse
-        )
+        logger.info(f"R2 Score: {metrics['r2_score']}")
+        logger.info(f"MAE: {metrics['mae']}")
+        logger.info(f"MSE: {metrics['mse']}")
+        logger.info(f"RMSE: {metrics['rmse']}")
 
         return metrics
 
     except Exception as e:
-
-        logger.error(
-            "Error during model evaluation: %s",
-            e
-        )
-
+        logger.error(f"Error evaluating model: {e}")
         raise
 
 
-def save_metrics(
-    metrics: dict,
-    file_path: str
-):
-    """Save evaluation metrics."""
+# --------------------------------------------------
+# Save metrics locally
+# --------------------------------------------------
 
+def save_metrics(metrics):
     try:
+        with open(METRICS_FILE, "w") as f:
+            json.dump(metrics, f, indent=4)
 
-        os.makedirs(
-            os.path.dirname(file_path),
-            exist_ok=True
-        )
+        logger.info(f"Metrics saved to {METRICS_FILE}")
 
-        with open(
-            file_path,
-            "w"
-        ) as file:
+    except Exception as e:
+        logger.error(f"Error saving metrics: {e}")
+        raise
 
-            json.dump(
-                metrics,
-                file,
-                indent=4
+
+# --------------------------------------------------
+# Log metrics to MLflow
+# --------------------------------------------------
+
+def log_to_mlflow(metrics, data):
+    try:
+        if not os.path.exists(RUN_ID_FILE):
+            raise FileNotFoundError(
+                f"MLflow Run ID file not found: {RUN_ID_FILE}"
             )
 
+        with open(RUN_ID_FILE, "r") as f:
+            run_id = f.read().strip()
+
+        if not run_id:
+            raise ValueError("MLflow Run ID is empty.")
+
+        # Resume the existing MLflow run
+        with mlflow.start_run(run_id=run_id):
+
+            # Track test dataset
+            dataset = mlflow.data.from_pandas(
+                data,
+                source=TEST_FILE,
+                name="student_test_data",
+                targets="exam_score"
+            )
+
+            mlflow.log_input(
+                dataset,
+                context="testing"
+            )
+
+            # Log evaluation metrics
+            mlflow.log_metrics(metrics)
+
+            # Log metrics.json
+            mlflow.log_artifact(METRICS_FILE)
+
         logger.info(
-            "Metrics saved to %s",
-            file_path
+            f"Test dataset, metrics and artifact logged to MLflow run: {run_id}"
         )
 
     except Exception as e:
-
-        logger.error(
-            "Error saving metrics: %s",
-            e
-        )
-
+        logger.error(f"Error logging to MLflow: {e}")
         raise
 
+
+# --------------------------------------------------
+# Main
+# --------------------------------------------------
 
 def main():
 
+    logger.info("Starting model evaluation")
+
     try:
+        # Load model
+        model = load_model()
+
+        # Load test data
+        data = load_data()
+
+        # Evaluate
+        metrics = evaluate_model(model, data)
+
+        # Save metrics locally
+        save_metrics(metrics)
+
+        # Send metrics to MLflow
+        log_to_mlflow(metrics, data)
 
         logger.info(
-            "Starting model evaluation"
-        )
-
-        model = load_model(
-            MODEL_FILE
-        )
-
-        df = load_data(
-            TEST_FILE
-        )
-
-        X_test = df.drop(
-            "exam_score",
-            axis=1
-        )
-
-        y_test = df["exam_score"]
-
-        metrics = evaluate_model(
-            model,
-            X_test,
-            y_test
-        )
-
-        save_metrics(
-            metrics,
-            METRICS_FILE
-        )
-
-        logger.info(
-            "Model evaluation completed successfully"
+            "Model evaluation stage completed successfully"
         )
 
     except Exception as e:
-
         logger.error(
-            "Failed to complete model evaluation: %s",
-            e
+            f"Model evaluation stage failed: {e}"
         )
-
         raise
 
 

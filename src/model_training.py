@@ -2,231 +2,175 @@ import logging
 import os
 
 import joblib
+import mlflow
+import mlflow.sklearn
 import pandas as pd
-
 from sklearn.linear_model import LinearRegression
 
 
 TRAIN_FILE = "data/processed/train.csv"
-
 MODEL_DIR = "models"
-
-MODEL_FILE = os.path.join(
-    MODEL_DIR,
-    "student_marks_prediction.joblib"
-)
-
-
-# --------------------------------------------------
-# Logging setup
-# --------------------------------------------------
-
+MODEL_FILE = os.path.join(MODEL_DIR, "student_marks_prediction.joblib")
 LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
+REPORTS_DIR = "reports"
 
+
+os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+
+# Logging setup
 logger = logging.getLogger("model_training")
 logger.setLevel(logging.DEBUG)
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-file_handler = logging.FileHandler(
-    os.path.join(
-        LOG_DIR,
-        "model_training.log"
+if not logger.handlers:
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-)
-file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(formatter)
 
-console_handler.setFormatter(formatter)
-file_handler.setFormatter(formatter)
+    file_handler = logging.FileHandler(
+        os.path.join(LOG_DIR, "model_training.log")
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
 
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
 
 
-def load_data(file_path: str) -> pd.DataFrame:
-    """Load training data."""
+# MLflow setup
+mlflow.set_tracking_uri("http://127.0.0.1:5000")
+mlflow.set_experiment("Student Marks Prediction")
 
+
+def load_data():
     try:
-
-        df = pd.read_csv(file_path)
-
-        logger.debug(
-            "Training data loaded from %s",
-            file_path
-        )
-
-        logger.debug(
-            "Training dataset shape: %s",
-            df.shape
-        )
-
-        return df
-
-    except FileNotFoundError as e:
-
-        logger.error(
-            "Training data not found: %s",
-            e
-        )
-
-        raise
-
-    except pd.errors.ParserError as e:
-
-        logger.error(
-            "CSV parsing error: %s",
-            e
-        )
-
-        raise
-
-    except Exception as e:
-
-        logger.error(
-            "Unexpected error loading training data: %s",
-            e
-        )
-
-        raise
-
-
-def train_model(
-    X_train,
-    y_train
-):
-    """Train Linear Regression model."""
-
-    try:
-
-        if len(X_train) != len(y_train):
-
-            raise ValueError(
-                "X_train and y_train have different numbers of samples."
+        if not os.path.exists(TRAIN_FILE):
+            raise FileNotFoundError(
+                f"Training file not found: {TRAIN_FILE}"
             )
 
-        logger.debug(
-            "Training samples: %d",
-            len(X_train)
-        )
+        data = pd.read_csv(TRAIN_FILE)
 
-        logger.debug(
-            "Features used: %s",
-            list(X_train.columns)
-        )
+        logger.debug(f"Training data loaded from {TRAIN_FILE}")
+        logger.debug(f"Training dataset shape: {data.shape}")
+
+        return data
+
+    except Exception as e:
+        logger.error(f"Error loading training data: {e}")
+        raise
+
+
+def train_model(data):
+    try:
+        target_column = "exam_score"
+
+        X = data.drop(columns=[target_column])
+        y = data[target_column]
+
+        logger.debug(f"Training samples: {len(X)}")
+        logger.debug(f"Features used: {list(X.columns)}")
+
+        logger.info("Starting Linear Regression training")
 
         model = LinearRegression()
+        model.fit(X, y)
 
-        logger.info(
-            "Starting Linear Regression training"
-        )
+        logger.info("Model training completed")
 
-        model.fit(
-            X_train,
-            y_train
-        )
-
-        logger.info(
-            "Model training completed"
-        )
-
-        return model
-
-    except ValueError as e:
-
-        logger.error(
-            "ValueError during model training: %s",
-            e
-        )
-
-        raise
+        return model, X, y
 
     except Exception as e:
-
-        logger.error(
-            "Unexpected model training error: %s",
-            e
-        )
-
+        logger.error(f"Error during model training: {e}")
         raise
 
 
-def save_model(
-    model,
-    file_path: str
-):
-    """Save trained model."""
-
+def save_model(model):
     try:
-
-        os.makedirs(
-            os.path.dirname(file_path),
-            exist_ok=True
-        )
-
-        joblib.dump(
-            model,
-            file_path
-        )
-
-        logger.info(
-            "Model saved to %s",
-            file_path
-        )
+        joblib.dump(model, MODEL_FILE)
+        logger.info(f"Model saved to {MODEL_FILE}")
 
     except Exception as e:
-
-        logger.error(
-            "Error saving model: %s",
-            e
-        )
-
+        logger.error(f"Error saving model: {e}")
         raise
 
 
 def main():
+    logger.info("Starting model training")
 
     try:
+        # Load data
+        data = load_data()
 
-        logger.info(
-            "Starting model training"
-        )
+        # Train model
+        model, X, y = train_model(data)
 
-        df = load_data(TRAIN_FILE)
+        # Save model locally
+        save_model(model)
 
-        X_train = df.drop(
-            "exam_score",
-            axis=1
-        )
+        # Start MLflow run
+        with mlflow.start_run() as run:
 
-        y_train = df["exam_score"]
+            # --------------------------------
+            # Dataset tracking
+            # --------------------------------
+            dataset = mlflow.data.from_pandas(
+                data,
+                source=TRAIN_FILE,
+                name="student_training_data",
+                targets="exam_score"
+            )
 
-        model = train_model(
-            X_train,
-            y_train
-        )
+            mlflow.log_input(
+                dataset,
+                context="training"
+            )
 
-        save_model(
-            model,
-            MODEL_FILE
-        )
+            logger.info("Training dataset logged to MLflow")
 
-        logger.info(
-            "Model training stage completed successfully"
-        )
+            # --------------------------------
+            # Log training parameters
+            # --------------------------------
+            mlflow.log_param("model_type", "LinearRegression")
+            mlflow.log_param("target_column", "exam_score")
+            mlflow.log_param("training_samples", len(X))
+            mlflow.log_param("number_of_features", len(X.columns))
+
+            # --------------------------------
+            # Log trained model
+            # --------------------------------
+            mlflow.sklearn.log_model(
+                sk_model=model,
+                name="student_marks_model"
+            )
+
+            # --------------------------------
+            # Save MLflow Run ID
+            # --------------------------------
+            with open(
+                os.path.join(REPORTS_DIR, "mlflow_run_id.txt"),
+                "w"
+            ) as f:
+                f.write(run.info.run_id)
+
+            logger.info(
+                f"MLflow run created: {run.info.run_id}"
+            )
+
+            logger.info(
+                "Dataset, model and parameters logged to MLflow successfully"
+            )
+
+        logger.info("Model training stage completed successfully")
 
     except Exception as e:
-
-        logger.error(
-            "Failed to complete model training: %s",
-            e
-        )
-
+        logger.error(f"Model training stage failed: {e}")
         raise
 
 

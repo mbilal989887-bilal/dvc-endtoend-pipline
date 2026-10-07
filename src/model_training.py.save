@@ -1,0 +1,232 @@
+import logging
+import os
+
+import joblib
+import pandas as pd
+
+from sklearn.linear_model import LinearRegression
+
+
+TRAIN_FILE = "data/processed/train.csv"
+
+MODEL_DIR = "models"
+
+MODEL_FILE = os.path.join(
+    MODEL_DIR,
+    "student_marks_prediction.joblib"
+)
+
+
+# --------------------------------------------------
+# Logging setup
+# --------------------------------------------------
+
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logger = logging.getLogger("model_training")
+logger.setLevel(logging.DEBUG)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
+file_handler = logging.FileHandler(
+    os.path.join(
+        LOG_DIR,
+        "model_training.log"
+    )
+)
+file_handler.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+def load_data(file_path: str) -> pd.DataFrame:
+    """Load training data."""
+
+    try:
+
+        df = pd.read_csv(file_path)
+
+        logger.debug(
+            "Training data loaded from %s",
+            file_path
+        )
+
+        logger.debug(
+            "Training dataset shape: %s",
+            df.shape
+        )
+
+        return df
+
+    except FileNotFoundError as e:
+
+        logger.error(
+            "Training data not found: %s",
+            e
+        )
+
+        raise
+
+    except pd.errors.ParserError as e:
+
+        logger.error(
+            "CSV parsing error: %s",
+            e
+        )
+
+        rai    except Exception as e:
+
+        logger.error(
+            "Unexpected error loading training data: %s",
+            e
+        )
+
+        raise
+
+
+def train_model(
+    X_train,
+    y_train
+):
+    """Train Linear Regression model."""
+
+    try:
+
+        if len(X_train) != len(y_train):
+
+            raise ValueError(
+                "X_train and y_train have different numbers of samples."
+            )
+
+        logger.debug(
+            "Training samples: %d",
+            len(X_train)
+        )
+
+        logger.debug(
+            "Features used: %s",
+            list(X_train.columns)
+        )
+
+        model = LinearRegression()
+
+        logger.info(
+            "Starting Linear Regression training"
+        )
+
+        model.fit(
+            X_train,
+            y_train
+        )
+
+        logger.info(
+            "Model training completed"
+        )
+
+        return model
+
+    except ValueError as e:
+
+        logger.error(
+            "ValueError during model training: %s",
+            e
+        )
+
+        raise
+
+    except Exception as e:
+
+        logger.error(
+            "Unexpected model training error: %s",
+            e
+        )
+
+        raise
+
+
+def save_model(
+    model,
+    file_path: str
+):
+    """Save trained model."""
+
+    try:
+
+        os.makedirs(
+            os.path.dirname(file_path),
+            exist_ok=True
+        )
+
+        joblib.dump(
+            model,
+            file_path
+        )
+
+        logger.info(
+            "Model saved to %s",
+            file_path
+        )
+
+    except Exception as e:
+
+        logger.error(
+            "Error saving model: %s",
+            e
+        )
+
+        raise
+
+
+def main():
+
+    try:
+
+        logger.info(
+            "Starting model training"
+        )
+
+        df = load_data(TRAIN_FILE)
+
+        X_train = df.drop(
+            "exam_score",
+            axis=1
+        )
+
+        y_train = df["exam_score"]
+
+        model = train_model(
+            X_train,
+            y_train
+        )
+
+        save_model(
+            model,
+            MODEL_FILE
+        )
+
+        logger.info(
+            "Model training stage completed successfully"
+        )
+
+    except Exception as e:
+
+        logger.error(
+            "Failed to complete model training: %s",
+            e
+        )
+
+        raise
+
+
+if __name__ == "__main__":
+    main()

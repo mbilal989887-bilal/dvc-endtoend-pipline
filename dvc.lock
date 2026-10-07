@@ -25,7 +25,7 @@ stages:
       size: 5321
     - path: params.yaml
       hash: md5
-      md5: 55ea1729f3b2d751804373f58893d623
+      md5: b1b41558248ab1c1d7709adf83304eab
       size: 56
     - path: src/data_preprocessing.py
       hash: md5
@@ -33,24 +33,24 @@ stages:
       size: 6100
     params:
       params.yaml:
-        data_preprocessing.random_state: 42
-        data_preprocessing.test_size: 0.2
+        data_preprocessing.random_state: 50
+        data_preprocessing.test_size: 0.3
     outs:
     - path: data/processed/test.csv
       hash: md5
-      md5: f00878699b51099a5672a87aefc15505
-      size: 750
+      md5: 1e047da8cd76e8be9a1bad99cd86fd08
+      size: 1086
     - path: data/processed/train.csv
       hash: md5
-      md5: 3180fcf003b4cf5ababfdb9c3178c479
-      size: 2808
+      md5: 0c3691e4933ad52f94d469823e8895f6
+      size: 2472
   model_training:
     cmd: python src/model_training.py
     deps:
     - path: data/processed/train.csv
       hash: md5
-      md5: 3180fcf003b4cf5ababfdb9c3178c479
-      size: 2808
+      md5: 0c3691e4933ad52f94d469823e8895f6
+      size: 2472
     - path: src/model_training.py
       hash: md5
       md5: 1dd7b8a2db1069019877a3da4a3bb0cf
@@ -58,18 +58,18 @@ stages:
     outs:
     - path: models/student_marks_prediction.joblib
       hash: md5
-      md5: 3eb1e34c6bf773d2747437fec5d7f47d
+      md5: 5070da6910738c6a7c36051fda0b3405
       size: 975
   model_evaluation:
     cmd: python src/model_evaluation.py
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: f00878699b51099a5672a87aefc15505
-      size: 750
+      md5: 1e047da8cd76e8be9a1bad99cd86fd08
+      size: 1086
     - path: models/student_marks_prediction.joblib
       hash: md5
-      md5: 3eb1e34c6bf773d2747437fec5d7f47d
+      md5: 5070da6910738c6a7c36051fda0b3405
       size: 975
     - path: src/model_evaluation.py
       hash: md5
@@ -78,5 +78,5 @@ stages:
     outs:
     - path: reports/metrics.json
       hash: md5
-      md5: 4864da51100057d82a7ebdcb2c05e49c
+      md5: d2ae85f3453f8d81999f4c8512c25b8b
       size: 84
