@@ -189,6 +189,7 @@ def log_to_mlflow(metrics, data):
                 name="student_test_data",
                 targets="exam_score"
             )
+            
 
             mlflow.log_input(
                 dataset,

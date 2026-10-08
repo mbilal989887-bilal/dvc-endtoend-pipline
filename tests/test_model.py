@@ -2,20 +2,22 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 
+FEATURES = [
+    "hours_studied",
+    "attendance_percent",
+    "previous_scores",
+]
+
+TARGET = "exam_score"
+
+
 def test_model_can_train():
     """Check that the model can train successfully."""
 
     data = pd.read_csv("data/processed/train.csv")
 
-    X = data[
-        [
-            "hours_studied",
-            "attendance_percent",
-            "previous_scores",
-        ]
-    ]
-
-    y = data["exam_score"]
+    X = data[FEATURES]
+    y = data[TARGET]
 
     model = LinearRegression()
     model.fit(X, y)
@@ -28,15 +30,8 @@ def test_model_can_predict():
 
     data = pd.read_csv("data/processed/train.csv")
 
-    X = data[
-        [
-            "hours_studied",
-            "attendance_percent",
-            "previous_scores",
-        ]
-    ]
-
-    y = data["exam_score"]
+    X = data[FEATURES]
+    y = data[TARGET]
 
     model = LinearRegression()
     model.fit(X, y)
