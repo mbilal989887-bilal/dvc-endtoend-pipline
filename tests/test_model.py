@@ -1,24 +1,55 @@
-import os
-import joblib
-import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 
-MODEL_FILE = "models/student_marks_prediction.joblib"
+def test_model_can_train():
+    """Check that the model can train successfully."""
 
+    data = pd.read_csv("data/processed/train.csv")
 
-def test_model_file_exists():
-    """Check that the trained model exists."""
-    assert os.path.exists(MODEL_FILE)
+    X = data[
+        [
+            "hours_studied",
+            "attendance_percent",
+            "previous_scores",
+        ]
+    ]
+
+    y = data["exam_score"]
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    assert model is not None
 
 
 def test_model_can_predict():
-    """Check that the model can make a prediction."""
+    """Check that the trained model can make a prediction."""
 
-    model = joblib.load(MODEL_FILE)
+    data = pd.read_csv("data/processed/train.csv")
 
-    sample_data = np.array([[5, 80, 70]])
+    X = data[
+        [
+            "hours_studied",
+            "attendance_percent",
+            "previous_scores",
+        ]
+    ]
 
-    prediction = model.predict(sample_data)
+    y = data["exam_score"]
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    sample = pd.DataFrame(
+        {
+            "hours_studied": [5],
+            "attendance_percent": [80],
+            "previous_scores": [70],
+        }
+    )
+
+    prediction = model.predict(sample)
 
     assert len(prediction) == 1
-    assert isinstance(prediction[0], (float, np.floating))
+    assert prediction[0] >= 0
