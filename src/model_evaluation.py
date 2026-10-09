@@ -1,3 +1,4 @@
+
 import json
 import logging
 import os
@@ -71,13 +72,12 @@ def load_model():
             )
 
         model = joblib.load(MODEL_FILE)
-
-        logger.debug(f"Model loaded from {MODEL_FILE}")
+        logger.info(f"Model loaded from {MODEL_FILE}")
 
         return model
 
-    except Exception as e:
-        logger.error(f"Error loading model: {e}")
+    except Exception:
+        logger.exception("Error loading model")
         raise
 
 
@@ -94,13 +94,18 @@ def load_data():
 
         data = pd.read_csv(TEST_FILE)
 
-        logger.debug(f"Test data loaded from {TEST_FILE}")
-        logger.debug(f"Test dataset shape: {data.shape}")
+        if "exam_score" not in data.columns:
+            raise ValueError(
+                "Target column 'exam_score' is missing from test data"
+            )
+
+        logger.info(f"Test data loaded from {TEST_FILE}")
+        logger.info(f"Test dataset shape: {data.shape}")
 
         return data
 
-    except Exception as e:
-        logger.error(f"Error loading test data: {e}")
+    except Exception:
+        logger.exception("Error loading test data")
         raise
 
 
@@ -115,33 +120,26 @@ def evaluate_model(model, data):
         X_test = data.drop(columns=[target_column])
         y_test = data[target_column]
 
-        logger.debug(f"Test samples: {len(X_test)}")
+        logger.info(f"Test samples: {len(X_test)}")
 
-        # Make predictions
         y_pred = model.predict(X_test)
 
-        # Calculate metrics
-        r2 = r2_score(y_test, y_pred)
-        mae = mean_absolute_error(y_test, y_pred)
         mse = mean_squared_error(y_test, y_pred)
-        rmse = np.sqrt(mse)
 
         metrics = {
-            "r2_score": round(r2, 4),
-            "mae": round(mae, 4),
+            "r2_score": round(r2_score(y_test, y_pred), 4),
+            "mae": round(mean_absolute_error(y_test, y_pred), 4),
             "mse": round(mse, 4),
-            "rmse": round(rmse, 4),
+            "rmse": round(float(np.sqrt(mse)), 4),
         }
 
-        logger.info(f"R2 Score: {metrics['r2_score']}")
-        logger.info(f"MAE: {metrics['mae']}")
-        logger.info(f"MSE: {metrics['mse']}")
-        logger.info(f"RMSE: {metrics['rmse']}")
+        for name, value in metrics.items():
+            logger.info("%s: %s", name, value)
 
         return metrics
 
-    except Exception as e:
-        logger.error(f"Error evaluating model: {e}")
+    except Exception:
+        logger.exception("Error evaluating model")
         raise
 
 
@@ -151,13 +149,13 @@ def evaluate_model(model, data):
 
 def save_metrics(metrics):
     try:
-        with open(METRICS_FILE, "w") as f:
-            json.dump(metrics, f, indent=4)
+        with open(METRICS_FILE, "w") as file:
+            json.dump(metrics, file, indent=4)
 
-        logger.info(f"Metrics saved to {METRICS_FILE}")
+        logger.info("Metrics saved to %s", METRICS_FILE)
 
-    except Exception as e:
-        logger.error(f"Error saving metrics: {e}")
+    except Exception:
+        logger.exception("Error saving metrics")
         raise
 
 
@@ -172,20 +170,23 @@ def log_to_mlflow(metrics, data):
                 f"MLflow Run ID file not found: {RUN_ID_FILE}"
             )
 
-        with open(RUN_ID_FILE, "r") as f:
-            run_id = f.read().strip()
+        with open(RUN_ID_FILE, "r") as file:
+            run_id = file.read().strip()
 
         if not run_id:
-            raise ValueError("MLflow Run ID is empty.")
+            raise ValueError("MLflow Run ID is empty")
 
-        # Get the run's original experiment before resuming it
+        # Confirm that this run exists in the current MLflow database.
         run = mlflow.get_run(run_id)
         experiment_id = run.info.experiment_id
 
-        # Ensure the active experiment matches the run being resumed
-        mlflow.set_experiment(experiment_id=experiment_id)
+        logger.info(
+            "Resuming MLflow run %s in experiment %s",
+            run_id,
+            experiment_id,
+        )
 
-        # Resume the existing MLflow run
+        # Resume the training run; do not select a different experiment.
         with mlflow.start_run(run_id=run_id):
             dataset = mlflow.data.from_pandas(
                 data,
@@ -194,16 +195,27 @@ def log_to_mlflow(metrics, data):
                 targets="exam_score",
             )
 
-            mlflow.log_input(dataset, context="testing")
+            mlflow.log_input(
+                dataset,
+                context="testing",
+            )
+
             mlflow.log_metrics(metrics)
-            mlflow.log_artifact(METRICS_FILE)
+
+            if os.path.exists(METRICS_FILE):
+                mlflow.log_artifact(METRICS_FILE)
+            else:
+                raise FileNotFoundError(
+                    f"Metrics file not found: {METRICS_FILE}"
+                )
 
         logger.info(
-            f"Test dataset, metrics and artifact logged to MLflow run: {run_id}"
+            "Test dataset, metrics, and artifact logged to MLflow run %s",
+            run_id,
         )
 
-    except Exception as e:
-        logger.error(f"Error logging to MLflow: {e}")
+    except Exception:
+        logger.exception("Failed to log evaluation results to MLflow")
         raise
 
 
@@ -212,22 +224,23 @@ def log_to_mlflow(metrics, data):
 # --------------------------------------------------
 
 def main():
-
     logger.info("Starting model evaluation")
 
     try:
         model = load_model()
         data = load_data()
         metrics = evaluate_model(model, data)
+
         save_metrics(metrics)
         log_to_mlflow(metrics, data)
 
         logger.info("Model evaluation stage completed successfully")
 
-    except Exception as e:
-        logger.error(f"Model evaluation stage failed: {e}")
+    except Exception:
+        logger.exception("Model evaluation stage failed")
         raise
 
 
 if __name__ == "__main__":
     main()
+
