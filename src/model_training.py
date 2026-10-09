@@ -7,6 +7,9 @@ import mlflow.sklearn
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+from pathlib import Path
+from mlflow.tracking import MlflowClient
+
 
 TRAIN_FILE = "data/processed/train.csv"
 MODEL_DIR = "models"
@@ -44,8 +47,26 @@ if not logger.handlers:
 
 
 # MLflow setup
+# Use SQLite to store MLflow tracking information
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
-mlflow.set_experiment("Student Marks Prediction")
+
+# Create an artifact folder that works on the current machine
+client = MlflowClient()
+experiment_name = "Student Marks Prediction CI"
+
+experiment = client.get_experiment_by_name(experiment_name)
+
+if experiment is None:
+    artifact_location = Path("mlruns").resolve().as_uri()
+
+    experiment_id = client.create_experiment(
+        name=experiment_name,
+        artifact_location=artifact_location,
+    )
+else:
+    experiment_id = experiment.experiment_id
+
+mlflow.set_experiment(experiment_id=experiment_id)
 
 
 def load_data():
