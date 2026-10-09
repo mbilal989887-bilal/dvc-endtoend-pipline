@@ -57,7 +57,6 @@ if not logger.handlers:
 # --------------------------------------------------
 
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
-mlflow.set_experiment("Student Marks Prediction")
 
 
 # --------------------------------------------------
@@ -179,27 +178,24 @@ def log_to_mlflow(metrics, data):
         if not run_id:
             raise ValueError("MLflow Run ID is empty.")
 
+        # Get the run's original experiment before resuming it
+        run = mlflow.get_run(run_id)
+        experiment_id = run.info.experiment_id
+
+        # Ensure the active experiment matches the run being resumed
+        mlflow.set_experiment(experiment_id=experiment_id)
+
         # Resume the existing MLflow run
         with mlflow.start_run(run_id=run_id):
-
-            # Track test dataset
             dataset = mlflow.data.from_pandas(
                 data,
                 source=TEST_FILE,
                 name="student_test_data",
-                targets="exam_score"
-            )
-            
-
-            mlflow.log_input(
-                dataset,
-                context="testing"
+                targets="exam_score",
             )
 
-            # Log evaluation metrics
+            mlflow.log_input(dataset, context="testing")
             mlflow.log_metrics(metrics)
-
-            # Log metrics.json
             mlflow.log_artifact(METRICS_FILE)
 
         logger.info(
@@ -220,29 +216,16 @@ def main():
     logger.info("Starting model evaluation")
 
     try:
-        # Load model
         model = load_model()
-
-        # Load test data
         data = load_data()
-
-        # Evaluate
         metrics = evaluate_model(model, data)
-
-        # Save metrics locally
         save_metrics(metrics)
-
-        # Send metrics to MLflow
         log_to_mlflow(metrics, data)
 
-        logger.info(
-            "Model evaluation stage completed successfully"
-        )
+        logger.info("Model evaluation stage completed successfully")
 
     except Exception as e:
-        logger.error(
-            f"Model evaluation stage failed: {e}"
-        )
+        logger.error(f"Model evaluation stage failed: {e}")
         raise
 
 
