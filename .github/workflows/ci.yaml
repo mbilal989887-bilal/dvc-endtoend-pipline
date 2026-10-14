@@ -28,6 +28,9 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run DVC pipeline
+      env:
+        MLFLOW_TRACKING_URI: file://${{ github.workspace }}/mlruns
+        MLFLOW_ALLOW_FILE_STORE: "true"
       run: |
         dvc repro
 

@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 
 import joblib
 import mlflow
@@ -57,7 +58,10 @@ if not logger.handlers:
 # MLflow setup
 # --------------------------------------------------
 
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
+tracking_uri = os.environ.get("MLFLOW_TRACKING_URI") or (
+    Path.cwd() / "mlruns"
+).as_uri()
+mlflow.set_tracking_uri(tracking_uri)
 
 
 # --------------------------------------------------
@@ -243,4 +247,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

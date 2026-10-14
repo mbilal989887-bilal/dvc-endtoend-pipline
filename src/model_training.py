@@ -47,21 +47,20 @@ if not logger.handlers:
 
 
 # MLflow setup
-# Use SQLite to store MLflow tracking information
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
+tracking_uri = os.environ.get("MLFLOW_TRACKING_URI") or (
+    Path.cwd() / "mlruns"
+).as_uri()
+mlflow.set_tracking_uri(tracking_uri)
 
 # Create an artifact folder that works on the current machine
 client = MlflowClient()
-experiment_name = "Student Marks Prediction CI"
+experiment_name = "Student Marks Prediction CI v2"
 
 experiment = client.get_experiment_by_name(experiment_name)
 
 if experiment is None:
-    artifact_location = Path("mlruns").resolve().as_uri()
-
     experiment_id = client.create_experiment(
         name=experiment_name,
-        artifact_location=artifact_location,
     )
 else:
     experiment_id = experiment.experiment_id
