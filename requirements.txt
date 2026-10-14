@@ -6,3 +6,5 @@ PyYAML
 dvc
 mlflow
 pytest
+fastapi==0.142.2
+uvicorn==0.54.0

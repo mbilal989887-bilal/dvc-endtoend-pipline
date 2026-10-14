@@ -25,8 +25,8 @@ stages:
       size: 5321
     - path: params.yaml
       hash: md5
-      md5: 6db248c0ee0c4c4868eb41acc70f99ac
-      size: 56
+      md5: 8a70f708b2bd9f0f5e0abca46f81b3f7
+      size: 57
     - path: src/data_preprocessing.py
       hash: md5
       md5: 6ad66c0fae7b89a64a9e697bd19b57ac
@@ -53,8 +53,8 @@ stages:
       size: 2814
     - path: src/model_training.py
       hash: md5
-      md5: 1306cde1dcf8d335bc961d001047b121
-      size: 4556
+      md5: 8f9e83ec16357fd246a373dc69070f7f
+      size: 5132
     outs:
     - path: models/student_marks_prediction.joblib
       hash: md5
@@ -73,8 +73,8 @@ stages:
       size: 975
     - path: src/model_evaluation.py
       hash: md5
-      md5: 12cbb01797e8db4a059904b7df6b2ca1
-      size: 6052
+      md5: 601ee2f4fba4c2b594f15a1bea4c26b2
+      size: 6177
     outs:
     - path: reports/metrics.json
       hash: md5
